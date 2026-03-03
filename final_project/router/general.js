@@ -58,8 +58,8 @@ public_users.get('/isbn/:isbn', async (req, res) => {
   }
 });
 
-// Get book details based on author
-public_users.get('/author/:author', (req, res) => {
+// Helper endpoint for Axios to fetch books by author
+public_users.get('/books/author/:author', (req, res) => {
   const author = req.params.author;
   const keys = Object.keys(books);
   let result = [];
@@ -71,14 +71,26 @@ public_users.get('/author/:author', (req, res) => {
   });
 
   if (result.length > 0) {
-    return res.status(200).send(JSON.stringify(result, null, 4));
+    return res.status(200).json(result);
   } else {
     return res.status(404).json({ message: "No books found for this author" });
   }
 });
 
-// Get all books based on title
-public_users.get('/title/:title', (req, res) => {
+// Get book details based on author USING Axios + async/await
+public_users.get('/author/:author', async (req, res) => {
+  const author = req.params.author;
+
+  try {
+    const response = await axios.get(`http://localhost:5000/books/author/${author}`);
+    return res.status(200).json(response.data);
+  } catch (error) {
+    return res.status(404).json({ message: "No books found for this author" });
+  }
+});
+
+// Helper endpoint for Axios to fetch books by title
+public_users.get('/books/title/:title', (req, res) => {
   const title = req.params.title;
   const keys = Object.keys(books);
   let result = [];
@@ -90,8 +102,20 @@ public_users.get('/title/:title', (req, res) => {
   });
 
   if (result.length > 0) {
-    return res.status(200).send(JSON.stringify(result, null, 4));
+    return res.status(200).json(result);
   } else {
+    return res.status(404).json({ message: "No books found with this title" });
+  }
+});
+
+// Get book details based on Title USING Axios + async/await
+public_users.get('/title/:title', async (req, res) => {
+  const title = req.params.title;
+
+  try {
+    const response = await axios.get(`http://localhost:5000/books/title/${title}`);
+    return res.status(200).json(response.data);
+  } catch (error) {
     return res.status(404).json({ message: "No books found with this title" });
   }
 });
