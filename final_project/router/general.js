@@ -20,10 +20,7 @@ public_users.post("/register", (req, res) => {
   return res.status(201).json({ message: "User successfully registered" });
 });
 
-/**
- * Helper endpoint so Axios has something to call.
- * This returns the local books object.
- */
+// Helper endpoint so Axios has something to call (returns ALL books)
 public_users.get('/books', (req, res) => {
   return res.status(200).json(books);
 });
@@ -38,13 +35,25 @@ public_users.get('/', async (req, res) => {
   }
 });
 
-// Get book details based on ISBN
-public_users.get('/isbn/:isbn', (req, res) => {
+// Helper endpoint for Axios to fetch SINGLE book by ISBN
+public_users.get('/books/:isbn', (req, res) => {
   const isbn = req.params.isbn;
 
   if (books[isbn]) {
-    return res.status(200).send(JSON.stringify(books[isbn], null, 4));
+    return res.status(200).json(books[isbn]);
   } else {
+    return res.status(404).json({ message: "Book not found" });
+  }
+});
+
+// Get book details based on ISBN USING Axios + async/await
+public_users.get('/isbn/:isbn', async (req, res) => {
+  const isbn = req.params.isbn;
+
+  try {
+    const response = await axios.get(`http://localhost:5000/books/${isbn}`);
+    return res.status(200).json(response.data);
+  } catch (error) {
     return res.status(404).json({ message: "Book not found" });
   }
 });
