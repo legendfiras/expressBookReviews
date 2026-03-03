@@ -5,6 +5,12 @@ let users = require("./auth_users.js").users;
 const public_users = express.Router();
 const axios = require('axios');
 
+/**
+ * POST /register
+ * Registers a new user.
+ * - Validates required fields
+ * - Checks if username already exists using isValid()
+ */
 public_users.post("/register", (req, res) => {
   const { username, password } = req.body;
 
@@ -20,12 +26,21 @@ public_users.post("/register", (req, res) => {
   return res.status(201).json({ message: "User successfully registered" });
 });
 
-// Helper endpoint so Axios has something to call (returns ALL books)
+/**
+ * GET /books  (Helper endpoint)
+ * This endpoint returns the full "books" object from booksdb.js.
+ * We use it as a local data source that Axios can call.
+ */
 public_users.get('/books', (req, res) => {
   return res.status(200).json(books);
 });
 
-// Get the book list available in the shop USING Axios + async/await
+/**
+ * GET /
+ * Retrieves ALL books using Axios + async/await.
+ * - Calls the helper endpoint /books
+ * - Returns the full books object
+ */
 public_users.get('/', async (req, res) => {
   try {
     const response = await axios.get('http://localhost:5000/books');
@@ -35,7 +50,11 @@ public_users.get('/', async (req, res) => {
   }
 });
 
-// Helper endpoint for Axios to fetch SINGLE book by ISBN
+/**
+ * GET /books/:isbn  (Helper endpoint)
+ * Returns a SINGLE book by ISBN directly from the in-memory books object.
+ * This is used by Axios calls in other routes.
+ */
 public_users.get('/books/:isbn', (req, res) => {
   const isbn = req.params.isbn;
 
@@ -46,7 +65,12 @@ public_users.get('/books/:isbn', (req, res) => {
   }
 });
 
-// Get book details based on ISBN USING Axios + async/await
+/**
+ * GET /isbn/:isbn
+ * Retrieves a SINGLE book using Axios + async/await.
+ * - Calls /books/:isbn (helper)
+ * - Returns book details (author, title, reviews)
+ */
 public_users.get('/isbn/:isbn', async (req, res) => {
   const isbn = req.params.isbn;
 
@@ -54,17 +78,29 @@ public_users.get('/isbn/:isbn', async (req, res) => {
     const response = await axios.get(`http://localhost:5000/books/${isbn}`);
     return res.status(200).json(response.data);
   } catch (error) {
-    return res.status(404).json({ message: "Book not found" });
+    // Keep response consistent + informative
+    return res.status(404).json({ message: "Book not found", isbn });
   }
 });
 
-// Helper endpoint for Axios to fetch books by author
+/**
+ * GET /books/author/:author  (Helper endpoint)
+ * Filters ALL books by author name.
+ *
+ * How filtering works:
+ * - books is an object: { "1": {author,title,reviews}, "2": {...}, ... }
+ * - We loop over all keys (ISBNs)
+ * - We push matching books into an array
+ * - We return:
+ *    200 + array of matching books, OR
+ *    404 if none found
+ */
 public_users.get('/books/author/:author', (req, res) => {
   const author = req.params.author;
   const keys = Object.keys(books);
   let result = [];
 
-  keys.forEach(key => {
+  keys.forEach((key) => {
     if (books[key].author === author) {
       result.push(books[key]);
     }
@@ -73,29 +109,44 @@ public_users.get('/books/author/:author', (req, res) => {
   if (result.length > 0) {
     return res.status(200).json(result);
   } else {
-    return res.status(404).json({ message: "No books found for this author" });
+    return res.status(404).json({ message: "No books found for this author", author });
   }
 });
 
-// Get book details based on author USING Axios + async/await
+/**
+ * GET /author/:author
+ * Retrieves books by author using Axios + async/await.
+ * - Calls /books/author/:author (helper)
+ * - Returns an array of matching books
+ *
+ * Note: We encode the author to support spaces and special characters.
+ * Example: "Jane Austen" -> "Jane%20Austen"
+ */
 public_users.get('/author/:author', async (req, res) => {
   const author = req.params.author;
 
   try {
-    const response = await axios.get(`http://localhost:5000/books/author/${author}`);
+    const encodedAuthor = encodeURIComponent(author);
+    const response = await axios.get(`http://localhost:5000/books/author/${encodedAuthor}`);
     return res.status(200).json(response.data);
   } catch (error) {
-    return res.status(404).json({ message: "No books found for this author" });
+    return res.status(404).json({ message: "No books found for this author", author });
   }
 });
 
-// Helper endpoint for Axios to fetch books by title
+/**
+ * GET /books/title/:title  (Helper endpoint)
+ * Filters ALL books by exact title match.
+ * Returns:
+ * - 200 + array of matching books
+ * - 404 if none found
+ */
 public_users.get('/books/title/:title', (req, res) => {
   const title = req.params.title;
   const keys = Object.keys(books);
   let result = [];
 
-  keys.forEach(key => {
+  keys.forEach((key) => {
     if (books[key].title === title) {
       result.push(books[key]);
     }
@@ -104,30 +155,45 @@ public_users.get('/books/title/:title', (req, res) => {
   if (result.length > 0) {
     return res.status(200).json(result);
   } else {
-    return res.status(404).json({ message: "No books found with this title" });
+    return res.status(404).json({ message: "No books found with this title", title });
   }
 });
 
-// Get book details based on Title USING Axios + async/await
+/**
+ * GET /title/:title
+ * Retrieves books by title using Axios + async/await.
+ * - Calls /books/title/:title (helper)
+ * - Returns an array of matching books
+ *
+ * Note: We encode the title to support spaces and special characters.
+ */
 public_users.get('/title/:title', async (req, res) => {
   const title = req.params.title;
 
   try {
-    const response = await axios.get(`http://localhost:5000/books/title/${title}`);
+    const encodedTitle = encodeURIComponent(title);
+    const response = await axios.get(`http://localhost:5000/books/title/${encodedTitle}`);
     return res.status(200).json(response.data);
   } catch (error) {
-    return res.status(404).json({ message: "No books found with this title" });
+    return res.status(404).json({ message: "No books found with this title", title });
   }
 });
 
-// Get book review
+/**
+ * GET /review/:isbn
+ * Returns ONLY the reviews object for a given ISBN.
+ * If there are no reviews yet, it returns {} (empty object).
+ *
+ * Improvement: return JSON directly (no manual JSON.stringify needed).
+ */
 public_users.get('/review/:isbn', (req, res) => {
   const isbn = req.params.isbn;
 
   if (books[isbn]) {
-    return res.status(200).send(JSON.stringify(books[isbn].reviews, null, 4));
+    // Always return JSON for consistency
+    return res.status(200).json(books[isbn].reviews);
   } else {
-    return res.status(404).json({ message: "Book not found" });
+    return res.status(404).json({ message: "Book not found", isbn });
   }
 });
 
